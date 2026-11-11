@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explore Uganda in 3D – SpaceTwinz</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; font-family: Inter, system-ui, sans-serif; }
+  #map { position: fixed; inset: 0; }
+  .brand { position: fixed; z-index: 5; top: 14px; left: 50%; transform: translateX(-50%);
+    background: #0F1B2D; color: #fff; padding: 10px 18px; border-radius: 24px;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.25); pointer-events: none; white-space: nowrap; }
+  .brand span { color: #F2A33A; }
+  #tourView { position: fixed; inset: 0; z-index: 20; background: #000; display: none; }
+  #tourView.open { display: block; }
+  #tour { width: 100%; height: 100%; border: 0; }
+  #back { position: fixed; z-index: 21; top: 14px; left: 14px; height: 46px; padding: 0 18px;
+    border: none; border-radius: 23px; background: #fff; color: #0F1B2D; font: 600 15px Inter, sans-serif;
+    box-shadow: 0 4px 16px rgba(0,0,0,.35); cursor: pointer; display: none; }
+  #tourView.open ~ #back { display: block; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="brand">Explore Uganda in <span>3D</span></div>
+<div id="tourView"><iframe id="tour" allow="fullscreen; xr-spatial-tracking" allowfullscreen></iframe></div>
+<button id="back" aria-label="Back to map">← Back to map</button>
+
+<script>
+/* =========================================================
+   1. PASTE YOUR GOOGLE MAPS API KEY HERE
+   ========================================================= */
+const GOOGLE_MAPS_API_KEY = "PASTE_YOUR_API_KEY_HERE";
+
+/* =========================================================
+   2. YOUR 3D TOURS (add more the same way)
+   To get exact lat/lng: open Google Maps, long-press the
+   spot, and copy the numbers that appear.
+   ========================================================= */
+const PLACES = [
+  { name: "Matwale Airbnb", where: "Mukono", lat: 0.3530, lng: 32.7550,
+    tour: "https://my.matterport.com/show/?m=Qvn1JgRygFw" },
+  { name: "Uganda Martyrs University", where: "Nkozi campus", lat: -0.0040, lng: 32.0180,
+    tour: "https://my.matterport.com/show/?m=AXGWGTXQXgP" },
+  { name: "Sierra Café · Reception & Hall", where: "Kenya Road, Tororo", lat: 0.6950, lng: 34.1790,
+    tour: "https://my.matterport.com/show/?m=ynEeWje4BpL" },
+  { name: "Sierra Café · Double Room", where: "Kenya Road, Tororo", lat: 0.6900, lng: 34.1850,
+    tour: "https://my.matterport.com/show/?m=zd9mKnrW6T7" }
+];
+/* ========================================================= */
+
+function initMap() {
+  const map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: 1.3, lng: 32.3 },
+    zoom: 7,
+    mapTypeId: "hybrid",          // satellite + roads. Use "roadmap" for the normal map
+    mapTypeControl: true,
+    streetViewControl: false,
+    fullscreenControl: false,
+    gestureHandling: "greedy"
+  });
+
+  const pin = {
+    path: "M0,0 C-5,-9 -11,-13 -11,-21 A11,11 0 1,1 11,-21 C11,-13 5,-9 0,0Z",
+    fillColor: "#F2A33A", fillOpacity: 1, strokeColor: "#0F1B2D", strokeWeight: 2,
+    scale: 1.4, anchor: new google.maps.Point(0, 0), labelOrigin: new google.maps.Point(0, -21)
+  };
+
+  const bounds = new google.maps.LatLngBounds();
+  PLACES.forEach(p => {
+    const m = new google.maps.Marker({
+      position: { lat: p.lat, lng: p.lng }, map, title: p.name + " – " + p.where,
+      icon: pin, label: { text: "3D", color: "#0F1B2D", fontWeight: "700", fontSize: "10px" }
+    });
+    m.addListener("click", () => openTour(p));
+    bounds.extend(m.getPosition());
+  });
+  map.fitBounds(bounds, 80);
+}
+
+function openTour(p) {
+  document.getElementById("tour").src = p.tour + "&play=1&qs=1";
+  document.getElementById("tourView").classList.add("open");
+}
+document.getElementById("back").onclick = () => {
+  document.getElementById("tourView").classList.remove("open");
+  document.getElementById("tour").src = "about:blank";
+};
+
+// Load Google Maps if a key is set; otherwise fall back to the free OpenStreetMap map
+if (GOOGLE_MAPS_API_KEY && GOOGLE_MAPS_API_KEY.indexOf("PASTE_") !== 0) {
+  window.gm_authFailure = loadFreeMap;   // bad or locked key: use the free map
+  const s = document.createElement("script");
+  s.src = "https://maps.googleapis.com/maps/api/js?key=" + GOOGLE_MAPS_API_KEY + "&callback=initMap";
+  s.async = true;
+  s.onerror = loadFreeMap;
+  document.head.appendChild(s);
+} else {
+  loadFreeMap();
+}
+
+function loadFreeMap() {
+  if (window.freeMapLoaded) return; window.freeMapLoaded = true;
+  document.getElementById("map").innerHTML = "";
+  const css = document.createElement("link");
+  css.rel = "stylesheet"; css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+  document.head.appendChild(css);
+  const js = document.createElement("script");
+  js.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+  js.onload = () => {
+    const map = L.map("map", { zoomControl: false });
+    L.control.zoom({ position: "bottomright" }).addTo(map);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
+    const icon = L.divIcon({ className: "", iconSize: [30, 30], iconAnchor: [15, 30],
+      html: '<div style="width:30px;height:30px;box-sizing:border-box;background:#F2A33A;border:3px solid #0F1B2D;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 3px 8px rgba(0,0,0,.35)"></div>' });
+    PLACES.forEach(p => L.marker([p.lat, p.lng], { icon, title: p.name })
+      .bindTooltip(p.name + " – " + p.where, { direction: "top", offset: [0, -30] })
+      .on("click", () => openTour(p)).addTo(map));
+    map.fitBounds(PLACES.map(p => [p.lat, p.lng]), { padding: [80, 80], maxZoom: 12 });
+  };
+  document.head.appendChild(js);
+}
+</script>
+</body>
+</html>
