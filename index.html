@@ -3,125 +3,237 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Explore Uganda in 3D – SpaceTwinz</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+<title>The Living Map of Uganda – Faiths, Cultures and Places in 3D</title>
+<meta name="description" content="Tap a religious, cultural or tourism place in Uganda to step inside it in 3D and learn about it.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <style>
-  html, body { margin: 0; height: 100%; font-family: Inter, system-ui, sans-serif; }
-  #map { position: fixed; inset: 0; }
-  .brand { position: fixed; z-index: 5; top: 14px; left: 50%; transform: translateX(-50%);
-    background: #0F1B2D; color: #fff; padding: 10px 18px; border-radius: 24px;
-    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px;
-    box-shadow: 0 4px 16px rgba(0,0,0,.25); pointer-events: none; white-space: nowrap; }
-  .brand span { color: #F2A33A; }
-  #tourView { position: fixed; inset: 0; z-index: 20; background: #000; display: none; }
+  :root { --ink: #1E1E1E; --rel: #7B4FC4; --cul: #E8833A; --tour: #2E8B57; --spc: #3B6FB6; }
+  html, body { margin: 0; height: 100%; font-family: Inter, system-ui, sans-serif; color: #1C2430; }
+  #map { position: fixed; inset: 0; background: #e8e6e1; }
+
+  /* Top bar */
+  .top { position: fixed; z-index: 1000; top: 10px; left: 10px; right: 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+  .row1 { display: flex; gap: 8px; align-items: center; width: min(640px, 100%); pointer-events: auto; }
+  .brand { background: var(--ink); color: #F9F9F9; padding: 0 16px; height: 44px; display: flex; align-items: center; border-radius: 22px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+  .brand span { color: #F2A33A; margin-left: 5px; }
+  #search { flex: 1; min-width: 0; height: 44px; border-radius: 22px; border: none; padding: 0 16px; font: 15px Inter, sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; pointer-events: auto; }
+  .chips button { min-height: 38px; padding: 0 12px; border-radius: 19px; border: none; background: #fff; color: var(--ink); font: 600 13px Inter, sans-serif; box-shadow: 0 2px 8px rgba(0,0,0,.2); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .chips button[aria-pressed="false"] { opacity: .55; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .results { width: min(640px, 100%); background: #fff; border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.2); pointer-events: auto; overflow: hidden; display: none; }
+  .results button { display: block; width: 100%; text-align: left; border: none; background: none; padding: 12px 16px; font: 15px Inter, sans-serif; cursor: pointer; border-bottom: 1px solid #eee; }
+  .results button small { color: #5A6472; }
+
+  /* Pins */
+  .pin { width: 30px; height: 30px; box-sizing: border-box; border: 3px solid var(--ink); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 3px 8px rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; }
+  .pin.soon { border-style: dashed; }
+  .pin b { transform: rotate(45deg); color: #fff; font: 700 9px Inter, sans-serif; }
+  .marker-cluster { background: rgba(30,30,30,.25); border-radius: 50%; }
+  .marker-cluster div { width: 34px; height: 34px; margin: 3px; border-radius: 50%; background: var(--ink); color: #fff; font: 700 13px Inter, sans-serif; display: flex; align-items: center; justify-content: center; }
+
+  /* Info / lesson panel */
+  #panel { position: fixed; z-index: 1500; left: 50%; bottom: 14px; transform: translateX(-50%); width: min(480px, calc(100% - 20px)); max-height: 72vh; overflow: auto; box-sizing: border-box; background: #fff; border-radius: 18px; box-shadow: 0 10px 40px rgba(0,0,0,.35); padding: 18px 20px 20px; display: none; }
+  #panel.open { display: block; }
+  #panel.inTour { left: auto; right: 12px; transform: none; bottom: 12px; z-index: 2100; }
+  .tag { font-size: 12px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; }
+  #panel h2 { margin: 6px 48px 2px 0; font-family: 'Space Grotesk', sans-serif; font-size: 22px; line-height: 1.2; }
+  .where { font-size: 14px; color: #4A5462; margin-bottom: 10px; }
+  #panel p { margin: 0 0 10px; font-size: 15.5px; line-height: 1.55; }
+  #panel h3 { margin: 14px 0 6px; font-size: 13px; letter-spacing: 1.2px; text-transform: uppercase; color: #4A5462; }
+  #panel ul { margin: 0 0 6px; padding-left: 20px; } #panel li { margin-bottom: 6px; line-height: 1.5; font-size: 15px; }
+  .ask { background: #F4F1FA; border-radius: 10px; padding: 10px 12px; font-size: 15px; line-height: 1.5; }
+  .soonNote { background: #F6EFE7; color: #6B3A10; border-radius: 10px; padding: 10px 12px; font-size: 14px; line-height: 1.45; margin-top: 10px; }
+  .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .actions a, .actions button { flex: 1; min-width: 120px; min-height: 46px; border-radius: 10px; border: none; font: 600 14px Inter, sans-serif; display: flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; }
+  .primary { background: #F2A33A; color: #1C1206; } .dark { background: var(--ink); color: #fff; } .light { background: #EFEDE8; color: var(--ink); }
+  #closePanel { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; border-radius: 22px; border: none; background: #F0EEE8; font-size: 22px; cursor: pointer; }
+
+  /* Full-screen tour */
+  #tourView { position: fixed; inset: 0; z-index: 2000; background: #000; display: none; }
   #tourView.open { display: block; }
   #tour { width: 100%; height: 100%; border: 0; }
-  #back { position: fixed; z-index: 21; top: 14px; left: 14px; height: 46px; padding: 0 18px;
-    border: none; border-radius: 23px; background: #fff; color: #0F1B2D; font: 600 15px Inter, sans-serif;
-    box-shadow: 0 4px 16px rgba(0,0,0,.35); cursor: pointer; display: none; }
-  #tourView.open ~ #back { display: block; }
+  .tourBar { position: fixed; z-index: 2050; top: 12px; left: 12px; display: none; gap: 8px; }
+  #tourView.open ~ .tourBar { display: flex; }
+  .tourBar button { height: 46px; padding: 0 16px; border: none; border-radius: 23px; background: #fff; color: var(--ink); font: 600 15px Inter, sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.35); cursor: pointer; }
+
+  .suggest { position: fixed; z-index: 1000; left: 10px; bottom: 26px; background: var(--ink); color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 20px; font: 600 13px Inter, sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+  #toast { position: fixed; z-index: 3000; left: 50%; top: 70px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 20px; font-size: 14px; display: none; }
+  @media (max-width: 520px) { .brand { font-size: 14px; padding: 0 12px; } .brand span { display: none; } .suggest { bottom: 90px; } }
 </style>
 </head>
 <body>
 <div id="map"></div>
-<div class="brand">Explore Uganda in <span>3D</span></div>
-<div id="tourView"><iframe id="tour" allow="fullscreen; xr-spatial-tracking" allowfullscreen></iframe></div>
-<button id="back" aria-label="Back to map">← Back to map</button>
 
+<div class="top">
+  <div class="row1">
+    <div class="brand">Living Map <span>of Uganda</span></div>
+    <input id="search" type="search" placeholder="Search places…" aria-label="Search places" autocomplete="off">
+  </div>
+  <div class="results" id="results"></div>
+  <div class="chips" id="chips"></div>
+</div>
+
+<a class="suggest" id="suggest" target="_blank" rel="noopener">+ Suggest a place</a>
+<div id="toast" role="status"></div>
+
+<section id="panel" aria-label="Place details">
+  <button id="closePanel" aria-label="Close">×</button>
+  <div class="tag" id="pTag"></div>
+  <h2 id="pName"></h2>
+  <div class="where" id="pWhere"></div>
+  <p id="pSummary"></p>
+  <div id="pLearnWrap"><h3>Learn</h3><ul id="pLearn"></ul></div>
+  <div id="pAskWrap"><h3>Think about it</h3><div class="ask" id="pAsk"></div></div>
+  <div class="soonNote" id="pSoon">3D walk-through tour coming soon.</div>
+  <div class="actions">
+    <button class="primary" id="pEnter">Enter 3D tour</button>
+    <a class="dark" id="pDirections" target="_blank" rel="noopener">Directions</a>
+    <button class="light" id="pShare">Share</button>
+  </div>
+</section>
+
+<div id="tourView"><iframe id="tour" title="3D tour" allow="fullscreen; xr-spatial-tracking" allowfullscreen></iframe></div>
+<div class="tourBar"><button id="back">← Map</button><button id="learnBtn">Learn about this place</button></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="places.js"></script>
 <script>
-/* =========================================================
-   1. PASTE YOUR GOOGLE MAPS API KEY HERE
-   ========================================================= */
-const GOOGLE_MAPS_API_KEY = "PASTE_YOUR_API_KEY_HERE";
-
-/* =========================================================
-   2. YOUR 3D TOURS (add more the same way)
-   To get exact lat/lng: open Google Maps, long-press the
-   spot, and copy the numbers that appear.
-   ========================================================= */
-const PLACES = [
-  { name: "Matwale Airbnb", where: "Mukono", lat: 0.3530, lng: 32.7550,
-    tour: "https://my.matterport.com/show/?m=Qvn1JgRygFw" },
-  { name: "Uganda Martyrs University", where: "Nkozi campus", lat: -0.0040, lng: 32.0180,
-    tour: "https://my.matterport.com/show/?m=AXGWGTXQXgP" },
-  { name: "Sierra Café · Reception & Hall", where: "Kenya Road, Tororo", lat: 0.6950, lng: 34.1790,
-    tour: "https://my.matterport.com/show/?m=ynEeWje4BpL" },
-  { name: "Sierra Café · Double Room", where: "Kenya Road, Tororo", lat: 0.6900, lng: 34.1850,
-    tour: "https://my.matterport.com/show/?m=zd9mKnrW6T7" }
-];
-/* ========================================================= */
-
-function initMap() {
-  const map = new google.maps.Map(document.getElementById("map"), {
-    center: { lat: 1.3, lng: 32.3 },
-    zoom: 7,
-    mapTypeId: "hybrid",          // satellite + roads. Use "roadmap" for the normal map
-    mapTypeControl: true,
-    streetViewControl: false,
-    fullscreenControl: false,
-    gestureHandling: "greedy"
-  });
-
-  const pin = {
-    path: "M0,0 C-5,-9 -11,-13 -11,-21 A11,11 0 1,1 11,-21 C11,-13 5,-9 0,0Z",
-    fillColor: "#F2A33A", fillOpacity: 1, strokeColor: "#0F1B2D", strokeWeight: 2,
-    scale: 1.4, anchor: new google.maps.Point(0, 0), labelOrigin: new google.maps.Point(0, -21)
-  };
-
-  const bounds = new google.maps.LatLngBounds();
-  PLACES.forEach(p => {
-    const m = new google.maps.Marker({
-      position: { lat: p.lat, lng: p.lng }, map, title: p.name + " – " + p.where,
-      icon: pin, label: { text: "3D", color: "#0F1B2D", fontWeight: "700", fontSize: "10px" }
-    });
-    m.addListener("click", () => openTour(p));
-    bounds.extend(m.getPosition());
-  });
-  map.fitBounds(bounds, 80);
-}
-
-function openTour(p) {
-  document.getElementById("tour").src = p.tour + "&play=1&qs=1";
-  document.getElementById("tourView").classList.add("open");
-}
-document.getElementById("back").onclick = () => {
-  document.getElementById("tourView").classList.remove("open");
-  document.getElementById("tour").src = "about:blank";
+const KINDS = {
+  Religious: { color: "#7B4FC4", text: "#5B37A0", label: "Religious sites" },
+  Cultural:  { color: "#E8833A", text: "#9A4A12", label: "Cultural sites" },
+  Tourism:   { color: "#2E8B57", text: "#1F6B42", label: "Tourism spots" },
+  Spaces:    { color: "#3B6FB6", text: "#2B5590", label: "Live 3D tours" }
 };
+const WHATSAPP = "256731518731";
+const $ = id => document.getElementById(id);
+const hasTour = p => p.tour && p.tour.startsWith("http");
 
-// Load Google Maps if a key is set; otherwise fall back to the free OpenStreetMap map
-if (GOOGLE_MAPS_API_KEY && GOOGLE_MAPS_API_KEY.indexOf("PASTE_") !== 0) {
-  window.gm_authFailure = loadFreeMap;   // bad or locked key: use the free map
-  const s = document.createElement("script");
-  s.src = "https://maps.googleapis.com/maps/api/js?key=" + GOOGLE_MAPS_API_KEY + "&callback=initMap";
-  s.async = true;
-  s.onerror = loadFreeMap;
-  document.head.appendChild(s);
-} else {
-  loadFreeMap();
-}
+// ---------- Map with street and satellite views ----------
+const street = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" });
+const satellite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  { maxZoom: 19, attribution: "Imagery &copy; Esri" });
+const map = L.map("map", { zoomControl: false, layers: [street] });
+L.control.zoom({ position: "bottomright" }).addTo(map);
+L.control.layers({ "Map": street, "Satellite": satellite }, null, { position: "bottomright" }).addTo(map);
 
-function loadFreeMap() {
-  if (window.freeMapLoaded) return; window.freeMapLoaded = true;
-  document.getElementById("map").innerHTML = "";
-  const js = document.createElement("script");
-  js.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-  js.onload = () => {
-    const map = L.map("map", { zoomControl: false });
-    L.control.zoom({ position: "bottomright" }).addTo(map);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
-    const icon = L.divIcon({ className: "", iconSize: [30, 30], iconAnchor: [15, 30],
-      html: '<div style="width:30px;height:30px;box-sizing:border-box;background:#F2A33A;border:3px solid #0F1B2D;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 3px 8px rgba(0,0,0,.35)"></div>' });
-    PLACES.forEach(p => L.marker([p.lat, p.lng], { icon, title: p.name })
-      .bindTooltip(p.name + " – " + p.where, { direction: "top", offset: [0, -30] })
-      .on("click", () => openTour(p)).addTo(map));
-    const fit = () => { map.invalidateSize(); map.fitBounds(PLACES.map(p => [p.lat, p.lng]), { padding: [80, 80], maxZoom: 12 }); };
-    fit(); setTimeout(fit, 400);
+const cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 40,
+  iconCreateFunction: c => L.divIcon({ html: "<div>" + c.getChildCount() + "</div>", className: "marker-cluster", iconSize: [40, 40] }) });
+map.addLayer(cluster);
+
+const markers = PLACES.map(p => {
+  const live = hasTour(p);
+  const icon = L.divIcon({ className: "", iconSize: [30, 30], iconAnchor: [15, 30],
+    html: '<div class="pin' + (live ? "" : " soon") + '" style="background:' + KINDS[p.kind].color + '">' + (live ? "<b>3D</b>" : "") + "</div>" });
+  const m = L.marker([p.lat, p.lng], { icon, title: p.name, keyboard: true })
+    .bindTooltip(p.name, { direction: "top", offset: [0, -30] })
+    .on("click", () => select(p));
+  return { p, m };
+});
+
+// ---------- Category filters ----------
+const active = new Set(Object.keys(KINDS));
+Object.keys(KINDS).forEach(k => {
+  const n = PLACES.filter(p => p.kind === k).length;
+  if (!n) return;
+  const b = document.createElement("button");
+  b.setAttribute("aria-pressed", "true");
+  b.innerHTML = '<span class="dot" style="background:' + KINDS[k].color + '"></span>' + KINDS[k].label + " (" + n + ")";
+  b.onclick = () => {
+    active.has(k) ? active.delete(k) : active.add(k);
+    b.setAttribute("aria-pressed", active.has(k));
+    refresh();
   };
-  document.head.appendChild(js);
+  $("chips").appendChild(b);
+});
+function refresh() {
+  cluster.clearLayers();
+  cluster.addLayers(markers.filter(x => active.has(x.p.kind)).map(x => x.m));
 }
+refresh();
+map.fitBounds(PLACES.map(p => [p.lat, p.lng]), { padding: [60, 60] });
+
+// ---------- Search ----------
+$("search").addEventListener("input", e => {
+  const q = e.target.value.trim().toLowerCase();
+  const box = $("results"); box.innerHTML = "";
+  if (!q) { box.style.display = "none"; return; }
+  const hits = PLACES.filter(p => (p.name + " " + p.where + " " + p.kind).toLowerCase().includes(q)).slice(0, 6);
+  hits.forEach(p => {
+    const b = document.createElement("button");
+    b.innerHTML = p.name + " <small>· " + p.where + "</small>";
+    b.onclick = () => { box.style.display = "none"; $("search").value = ""; select(p, true); };
+    box.appendChild(b);
+  });
+  if (!hits.length) box.innerHTML = '<button disabled>No places found</button>';
+  box.style.display = "block";
+});
+
+// ---------- Selecting a place ----------
+let current = null;
+function select(p, fly) {
+  current = p;
+  history.replaceState(null, "", "#" + p.id);
+  if (fly) map.flyTo([p.lat, p.lng], 15);
+  if (hasTour(p)) openTour(p); else showPanel(p, false);
+}
+function showPanel(p, inTour) {
+  const k = KINDS[p.kind];
+  $("pTag").textContent = k.label.replace(/s$/, "");
+  $("pTag").style.color = k.text;
+  $("pName").textContent = p.name;
+  $("pWhere").textContent = p.where;
+  $("pSummary").textContent = p.summary;
+  $("pLearn").innerHTML = "";
+  (p.learn || []).forEach(t => { const li = document.createElement("li"); li.textContent = t; $("pLearn").appendChild(li); });
+  $("pLearnWrap").style.display = (p.learn && p.learn.length) ? "block" : "none";
+  $("pAsk").textContent = p.ask || "";
+  $("pAskWrap").style.display = p.ask ? "block" : "none";
+  $("pSoon").style.display = hasTour(p) ? "none" : "block";
+  $("pEnter").style.display = hasTour(p) && !inTour ? "flex" : "none";
+  $("pDirections").href = "https://www.google.com/maps/dir/?api=1&destination=" + p.lat + "," + p.lng;
+  $("panel").classList.toggle("inTour", !!inTour);
+  $("panel").classList.add("open");
+  $("panel").scrollTop = 0;
+}
+function closePanel() { $("panel").classList.remove("open"); }
+function openTour(p) {
+  closePanel();
+  $("tour").src = p.tour + (p.tour.includes("?") ? "&" : "?") + "play=1&qs=1";
+  $("tourView").classList.add("open");
+  $("learnBtn").style.display = (p.learn && p.learn.length) || p.summary ? "block" : "none";
+}
+$("pEnter").onclick = () => current && openTour(current);
+$("back").onclick = () => { $("tourView").classList.remove("open"); $("tour").src = "about:blank"; closePanel(); history.replaceState(null, "", location.pathname); };
+$("learnBtn").onclick = () => $("panel").classList.contains("open") ? closePanel() : showPanel(current, true);
+$("closePanel").onclick = () => { closePanel(); if (!$("tourView").classList.contains("open")) history.replaceState(null, "", location.pathname); };
+map.on("click", () => { closePanel(); $("results").style.display = "none"; });
+
+// Share a place
+$("pShare").onclick = async () => {
+  const url = location.origin + location.pathname + "#" + current.id;
+  try {
+    if (navigator.share) await navigator.share({ title: current.name, text: "Explore " + current.name + " on the Living Map of Uganda", url });
+    else { await navigator.clipboard.writeText(url); toast("Link copied"); }
+  } catch (e) { /* cancelled */ }
+};
+function toast(t) { const el = $("toast"); el.textContent = t; el.style.display = "block"; setTimeout(() => el.style.display = "none", 2200); }
+
+// Suggest a place via WhatsApp
+$("suggest").href = "https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent("Hello SpaceTwinz, I'd like to suggest a place for the Living Map of Uganda: ");
+
+// Open a place from a shared link (#place-id)
+function openFromHash() {
+  const id = decodeURIComponent(location.hash.slice(1));
+  const p = PLACES.find(x => x.id === id);
+  if (p) { map.setView([p.lat, p.lng], 15); select(p); }
+}
+window.addEventListener("hashchange", openFromHash);
+setTimeout(openFromHash, 300);
 </script>
 </body>
 </html>
