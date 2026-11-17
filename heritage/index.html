@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Thread of Fire – Sacred Sites of Buganda in 3D</title>
+<title>The Living Map of Uganda – Faiths, Cultures and Places in 3D</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <style>
@@ -37,10 +37,12 @@
 <body>
 <div id="map"></div>
 <div class="top">
-  <div class="brand">Thread of Fire · <span>Sacred Buganda in 3D</span></div>
+  <div class="brand">The Living Map of <span>Uganda</span></div>
   <div class="legend">
-    <span><i style="background:#E8833A"></i>Heritage site (planned tour)</span>
-    <span><i style="background:#9AA4B2"></i>SpaceTwinz tour (live sample)</span>
+    <span><i style="background:#7B4FC4"></i>Religious site</span>
+    <span><i style="background:#E8833A"></i>Cultural site</span>
+    <span><i style="background:#2E8B57"></i>Tourism spot</span>
+    <span><i style="background:#9AA4B2"></i>Live 3D tour</span>
   </div>
 </div>
 
@@ -59,23 +61,33 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// Heritage sites: tours to be captured with the grant (coordinates approximate)
+// Planned sites (coordinates approximate). kind: Faith | Culture | Tourism
+const KIND = { Faith: { color: "#7B4FC4", label: "Religious site" }, Culture: { color: "#E8833A", label: "Cultural site" }, Tourism: { color: "#2E8B57", label: "Tourism spot" } };
 const HERITAGE = [
-  { name: "Kasubi Tombs", where: "Kasubi hill, Kampala", lat: 0.3290, lng: 32.5537,
-    text: "Royal tombs of four Kabakas of Buganda, among them Mwanga II, and a UNESCO World Heritage Site. The great thatched house Muzibu Azaala Mpanga burned in 2010 and was rebuilt over 15 years with traditional skills.",
-    soon: "Planned: 3D tour of the courtyard and the spaces the Kingdom allows, with the voices of custodians and thatchers." },
-  { name: "Uganda Martyrs Catholic Basilica", where: "Namugongo", lat: 0.3953, lng: 32.6658,
-    text: "Shrine to the 22 Catholic Uganda Martyrs, killed between 1885 and 1887. Its basilica is shaped like a traditional hut, and millions of pilgrims come for Martyrs' Day on 3 June.",
-    soon: "Planned: 3D tour of the basilica and martyrs' lake, with pilgrims' and catechists' stories." },
-  { name: "Anglican Martyrs' Site", where: "Namugongo (Nakiyanja)", lat: 0.3990, lng: 32.6745,
-    text: "Shrine to the 23 Anglican martyrs. Its church altar stands over the place where the martyrs were burned.",
-    soon: "Planned: 3D tour of the church and grounds, with stories from clergy and pilgrims." },
-  { name: "Rubaga Cathedral", where: "Lubaga hill, Kampala", lat: 0.3020, lng: 32.5530,
-    text: "Catholic cathedral of Kampala, on one of the city's historic hills.",
-    soon: "Planned if time allows." },
-  { name: "Namirembe Cathedral", where: "Namirembe hill, Kampala", lat: 0.3115, lng: 32.5630,
-    text: "Anglican cathedral on Namirembe hill, facing Rubaga across the valley.",
-    soon: "Planned if time allows." }
+  { kind: "Faith", name: "Uganda Martyrs Catholic Basilica", where: "Namugongo", lat: 0.3953, lng: 32.6658,
+    text: "Shrine to the 22 Catholic Uganda Martyrs, killed between 1885 and 1887. Its basilica is shaped like a traditional hut, and millions of pilgrims come for Martyrs' Day on 3 June." },
+  { kind: "Faith", name: "Anglican Martyrs' Site", where: "Namugongo (Nakiyanja)", lat: 0.3990, lng: 32.6745,
+    text: "Shrine to the 23 Anglican martyrs. Its church altar stands over the place where the martyrs were burned." },
+  { kind: "Faith", name: "Rubaga Cathedral", where: "Lubaga hill, Kampala", lat: 0.3020, lng: 32.5530,
+    text: "The Catholic cathedral of Kampala, on one of the city's historic hills." },
+  { kind: "Faith", name: "Namirembe Cathedral", where: "Namirembe hill, Kampala", lat: 0.3115, lng: 32.5630,
+    text: "The Anglican cathedral on Namirembe hill, facing Rubaga across the valley." },
+  { kind: "Faith", name: "Uganda National Mosque", where: "Old Kampala", lat: 0.3155, lng: 32.5690,
+    text: "Uganda's national mosque on Old Kampala hill, the home of the Uganda Muslim Supreme Council." },
+  { kind: "Faith", name: "Bahá'í House of Worship", where: "Kikaya Hill, Kampala", lat: 0.3700, lng: 32.5910,
+    text: "The Bahá'í House of Worship for Africa, a domed temple set in gardens on Kikaya Hill and open to people of all faiths." },
+  { kind: "Culture", name: "Kasubi Tombs", where: "Kasubi hill, Kampala", lat: 0.3290, lng: 32.5537,
+    text: "Royal tombs of four Kabakas of Buganda and a UNESCO World Heritage Site. The great thatched house Muzibu Azaala Mpanga burned in 2010 and was rebuilt over 15 years with traditional skills." },
+  { kind: "Culture", name: "Uganda Museum", where: "Kampala", lat: 0.3395, lng: 32.5845,
+    text: "Uganda's national museum, holding collections on the country's peoples, history and traditional crafts." },
+  { kind: "Culture", name: "Ndere Cultural Centre", where: "Ntinda, Kampala", lat: 0.3628, lng: 32.6136,
+    text: "Home of the Ndere Troupe, which performs traditional music and dances from regions all over Uganda." },
+  { kind: "Culture", name: "Igongo Cultural Centre", where: "Biharwe, near Mbarara", lat: -0.5770, lng: 30.7240,
+    text: "A museum and centre for the culture and history of Ankole in western Uganda." },
+  { kind: "Tourism", name: "Ssezibwa Falls", where: "Mukono", lat: 0.3590, lng: 32.8730,
+    text: "Waterfalls that are a sacred place in Buganda tradition, still visited for prayer and blessings." },
+  { kind: "Tourism", name: "Source of the Nile", where: "Jinja", lat: 0.4244, lng: 33.2042,
+    text: "Where the Nile leaves Lake Victoria on its journey north to the Mediterranean, and a landmark of Busoga." }
 ];
 
 // Existing SpaceTwinz tours (live work samples)
@@ -92,20 +104,20 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19,
 const icon = (color, planned) => L.divIcon({ className: '', iconSize: [30, 30], iconAnchor: [15, 30],
   html: '<div class="pin' + (planned ? ' planned' : '') + '" style="background:' + color + '"></div>' });
 
-HERITAGE.forEach(h => L.marker([h.lat, h.lng], { icon: icon('#E8833A', true), title: h.name })
+HERITAGE.forEach(h => L.marker([h.lat, h.lng], { icon: icon(KIND[h.kind].color, true), title: h.name })
   .bindTooltip(h.name, { direction: 'top', offset: [0, -30] })
-  .on('click', () => openCard(h, 'Heritage site · planned 3D tour')).addTo(map));
+  .on('click', () => openCard(h, KIND[h.kind].label + ' · 3D tour and lessons coming')).addTo(map));
 TOURS.forEach(t => L.marker([t.lat, t.lng], { icon: icon('#9AA4B2'), title: t.name })
   .bindTooltip(t.name + ' (live tour)', { direction: 'top', offset: [0, -30] })
   .on('click', () => openTour(t)).addTo(map));
 
 const $ = id => document.getElementById(id);
-const fit = () => { map.invalidateSize(); map.fitBounds(HERITAGE.map(h => [h.lat, h.lng]), { padding: [90, 90], maxZoom: 12 }); };
+const fit = () => { map.invalidateSize(); map.fitBounds(HERITAGE.concat(TOURS).map(h => [h.lat, h.lng]), { padding: [110, 60], maxZoom: 12 }); };
 fit(); setTimeout(fit, 400);
 
 function openCard(h, tag) {
   $('cTag').textContent = tag; $('cName').textContent = h.name; $('cWhere').textContent = h.where;
-  $('cText').textContent = h.text; $('cSoon').textContent = h.soon;
+  $('cText').textContent = h.text; $('cSoon').textContent = 'Coming with the project: a 3D walk-through tour of this place, with short lessons and the voices of the people who care for it.';
   $('cTour').style.display = 'none';
   $('card').classList.add('open');
 }
