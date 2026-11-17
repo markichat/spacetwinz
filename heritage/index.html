@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread of Fire – Sacred Sites of Buganda in 3D</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; font-family: Inter, system-ui, sans-serif; color: #1C2430; }
+  #map { position: fixed; inset: 0; }
+  .top { position: fixed; z-index: 1000; top: 12px; left: 12px; right: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+  .brand { background: #1E1E1E; color: #F9F9F9; padding: 10px 18px; border-radius: 24px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; box-shadow: 0 4px 16px rgba(0,0,0,.3); text-align: center; }
+  .brand span { color: #E8833A; }
+  .legend { background: rgba(255,255,255,.95); padding: 8px 14px; border-radius: 16px; font-size: 13px; display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,.2); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; border: 2px solid #1E1E1E; }
+  .pin { width: 30px; height: 30px; box-sizing: border-box; border: 3px solid #1E1E1E; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 3px 8px rgba(0,0,0,.35); }
+  .pin.planned { border-style: dashed; }
+
+  #card { position: fixed; z-index: 1500; left: 50%; bottom: 20px; transform: translateX(-50%); width: min(480px, calc(100% - 24px)); box-sizing: border-box; background: #fff; border-radius: 18px; box-shadow: 0 10px 40px rgba(0,0,0,.3); padding: 20px 22px; display: none; max-height: 70vh; overflow: auto; }
+  #card.open { display: block; }
+  #card .tag { font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #9A4A12; }
+  #card h2 { margin: 6px 48px 4px 0; font-family: 'Space Grotesk', sans-serif; font-size: 23px; }
+  #card .where { font-size: 14px; color: #4A5462; margin-bottom: 10px; }
+  #card p { margin: 0 0 10px; font-size: 15.5px; line-height: 1.55; color: #2A3340; }
+  #card .soon { background: #F6EFE7; color: #6B3A10; border-radius: 10px; padding: 10px 12px; font-size: 14px; line-height: 1.45; }
+  #card a.btn { margin-top: 12px; min-height: 48px; border-radius: 10px; background: #E8833A; color: #1C1206; font-weight: 700; display: flex; align-items: center; justify-content: center; text-decoration: none; }
+  #closeBtn { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; border-radius: 22px; border: none; background: #F0EEE8; font-size: 22px; cursor: pointer; }
+
+  #tourView { position: fixed; inset: 0; z-index: 2000; background: #000; display: none; }
+  #tourView.open { display: block; }
+  #tour { width: 100%; height: 100%; border: 0; }
+  #back { position: fixed; z-index: 2001; top: 14px; left: 14px; height: 46px; padding: 0 18px; border: none; border-radius: 23px; background: #fff; color: #1E1E1E; font: 600 15px Inter, sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.35); cursor: pointer; display: none; }
+  #tourView.open ~ #back { display: block; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="top">
+  <div class="brand">Thread of Fire · <span>Sacred Buganda in 3D</span></div>
+  <div class="legend">
+    <span><i style="background:#E8833A"></i>Heritage site (planned tour)</span>
+    <span><i style="background:#9AA4B2"></i>SpaceTwinz tour (live sample)</span>
+  </div>
+</div>
+
+<div id="card" role="dialog" aria-label="Site details">
+  <button id="closeBtn" aria-label="Close">×</button>
+  <div class="tag" id="cTag"></div>
+  <h2 id="cName"></h2>
+  <div class="where" id="cWhere"></div>
+  <p id="cText"></p>
+  <div class="soon" id="cSoon"></div>
+  <a class="btn" id="cTour" href="#">Enter 3D tour</a>
+</div>
+
+<div id="tourView"><iframe id="tour" allow="fullscreen; xr-spatial-tracking" allowfullscreen></iframe></div>
+<button id="back" aria-label="Back to map">← Back to map</button>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// Heritage sites: tours to be captured with the grant (coordinates approximate)
+const HERITAGE = [
+  { name: "Kasubi Tombs", where: "Kasubi hill, Kampala", lat: 0.3290, lng: 32.5537,
+    text: "Royal tombs of four Kabakas of Buganda, among them Mwanga II, and a UNESCO World Heritage Site. The great thatched house Muzibu Azaala Mpanga burned in 2010 and was rebuilt over 15 years with traditional skills.",
+    soon: "Planned: 3D tour of the courtyard and the spaces the Kingdom allows, with the voices of custodians and thatchers." },
+  { name: "Uganda Martyrs Catholic Basilica", where: "Namugongo", lat: 0.3953, lng: 32.6658,
+    text: "Shrine to the 22 Catholic Uganda Martyrs, killed between 1885 and 1887. Its basilica is shaped like a traditional hut, and millions of pilgrims come for Martyrs' Day on 3 June.",
+    soon: "Planned: 3D tour of the basilica and martyrs' lake, with pilgrims' and catechists' stories." },
+  { name: "Anglican Martyrs' Site", where: "Namugongo (Nakiyanja)", lat: 0.3990, lng: 32.6745,
+    text: "Shrine to the 23 Anglican martyrs. Its church altar stands over the place where the martyrs were burned.",
+    soon: "Planned: 3D tour of the church and grounds, with stories from clergy and pilgrims." },
+  { name: "Rubaga Cathedral", where: "Lubaga hill, Kampala", lat: 0.3020, lng: 32.5530,
+    text: "Catholic cathedral of Kampala, on one of the city's historic hills.",
+    soon: "Planned if time allows." },
+  { name: "Namirembe Cathedral", where: "Namirembe hill, Kampala", lat: 0.3115, lng: 32.5630,
+    text: "Anglican cathedral on Namirembe hill, facing Rubaga across the valley.",
+    soon: "Planned if time allows." }
+];
+
+// Existing SpaceTwinz tours (live work samples)
+const TOURS = [
+  { name: "Uganda Martyrs University", where: "Nkozi", lat: -0.0040, lng: 32.0180, tour: "https://my.matterport.com/show/?m=AXGWGTXQXgP" },
+  { name: "Matwale Airbnb", where: "Mukono", lat: 0.3530, lng: 32.7550, tour: "https://my.matterport.com/show/?m=Qvn1JgRygFw" },
+  { name: "Sierra Café · Reception & Hall", where: "Tororo", lat: 0.6950, lng: 34.1790, tour: "https://my.matterport.com/show/?m=ynEeWje4BpL" },
+  { name: "Sierra Café · Double Room", where: "Tororo", lat: 0.6900, lng: 34.1850, tour: "https://my.matterport.com/show/?m=zd9mKnrW6T7" }
+];
+
+const map = L.map('map', { zoomControl: false });
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+const icon = (color, planned) => L.divIcon({ className: '', iconSize: [30, 30], iconAnchor: [15, 30],
+  html: '<div class="pin' + (planned ? ' planned' : '') + '" style="background:' + color + '"></div>' });
+
+HERITAGE.forEach(h => L.marker([h.lat, h.lng], { icon: icon('#E8833A', true), title: h.name })
+  .bindTooltip(h.name, { direction: 'top', offset: [0, -30] })
+  .on('click', () => openCard(h, 'Heritage site · planned 3D tour')).addTo(map));
+TOURS.forEach(t => L.marker([t.lat, t.lng], { icon: icon('#9AA4B2'), title: t.name })
+  .bindTooltip(t.name + ' (live tour)', { direction: 'top', offset: [0, -30] })
+  .on('click', () => openTour(t)).addTo(map));
+
+const $ = id => document.getElementById(id);
+const fit = () => { map.invalidateSize(); map.fitBounds(HERITAGE.map(h => [h.lat, h.lng]), { padding: [90, 90], maxZoom: 12 }); };
+fit(); setTimeout(fit, 400);
+
+function openCard(h, tag) {
+  $('cTag').textContent = tag; $('cName').textContent = h.name; $('cWhere').textContent = h.where;
+  $('cText').textContent = h.text; $('cSoon').textContent = h.soon;
+  $('cTour').style.display = 'none';
+  $('card').classList.add('open');
+}
+function openTour(t) {
+  $('card').classList.remove('open');
+  $('tour').src = t.tour + '&play=1&qs=1';
+  $('tourView').classList.add('open');
+}
+$('closeBtn').onclick = () => $('card').classList.remove('open');
+$('back').onclick = () => { $('tourView').classList.remove('open'); $('tour').src = 'about:blank'; };
+map.on('click', () => $('card').classList.remove('open'));
+</script>
+</body>
+</html>
